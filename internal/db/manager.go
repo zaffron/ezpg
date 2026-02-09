@@ -3,17 +3,10 @@ package db
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zaffron/ezpg/internal/config"
 )
-
-type Manager struct {
-	mu    sync.RWMutex
-	pools map[string]*pgxpool.Pool
-	conns map[string]*config.Connection
-}
 
 func NewManager(connections []config.Connection) *Manager {
 	m := &Manager{
