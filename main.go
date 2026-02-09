@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zaffron/ezpg/internal/config"
+	"github.com/zaffron/ezpg/internal/tui"
 )
 
 func main() {
@@ -19,5 +21,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Config: %+v\n", cfg)
+	app := tui.NewApp(cfg)
+	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
 }
