@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zaffron/lazypg/internal/config"
+	"github.com/zaffron/ezpg/internal/config"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/zaffron/lazypg
+module github.com/zaffron/ezpg
 
 go 1.25.7
 

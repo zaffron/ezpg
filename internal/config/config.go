@@ -14,7 +14,7 @@ func DefaultPath() string {
 		return ""
 	}
 
-	return filepath.Join(home, ".config", "lazypg", "config.yaml")
+	return filepath.Join(home, ".config", "ezpg", "config.yaml")
 }
 
 func Load(path string) (*Config, error) {
