@@ -940,6 +940,7 @@ func (a App) browseHints() []keyhints.Hint {
 		if a.tableview.HasData() {
 			hints = append(hints,
 				keyhints.Hint{Key: "enter", Desc: "edit cell"},
+				keyhints.Hint{Key: "h/l", Desc: "scroll cols"},
 				keyhints.Hint{Key: "d", Desc: "delete"},
 				keyhints.Hint{Key: "o", Desc: "insert"},
 				keyhints.Hint{Key: "n/p", Desc: "page"},
@@ -1037,9 +1038,9 @@ func (a App) browseView() string {
 
 	var sideStyle lipgloss.Style
 	if a.panel == PanelSidebar {
-		sideStyle = StyleSidebarActive.Width(sideW).Height(sideContentH)
+		sideStyle = StyleSidebarActive.Width(sideW).MaxWidth(sideW).Height(sideContentH).MaxHeight(sideContentH)
 	} else {
-		sideStyle = StyleSidebarInactive.Width(sideW).Height(sideContentH)
+		sideStyle = StyleSidebarInactive.Width(sideW).MaxWidth(sideW).Height(sideContentH).MaxHeight(sideContentH)
 	}
 	sideView := sideStyle.Render(a.sidebar.View(a.panel == PanelSidebar))
 
@@ -1055,16 +1056,16 @@ func (a App) browseView() string {
 
 		var tableStyle lipgloss.Style
 		if a.panel == PanelTable {
-			tableStyle = StyleMainActive.Width(mainW).Height(tableContentH)
+			tableStyle = StyleMainActive.Width(mainW).MaxWidth(mainW).Height(tableContentH).MaxHeight(tableContentH)
 		} else {
-			tableStyle = StyleMainInactive.Width(mainW).Height(tableContentH)
+			tableStyle = StyleMainInactive.Width(mainW).MaxWidth(mainW).Height(tableContentH).MaxHeight(tableContentH)
 		}
 
 		var edStyle lipgloss.Style
 		if a.panel == PanelEditor {
-			edStyle = StyleEditorActive.Width(mainW).Height(editorContentH)
+			edStyle = StyleEditorActive.Width(mainW).MaxWidth(mainW).Height(editorContentH).MaxHeight(editorContentH)
 		} else {
-			edStyle = StyleEditorInactive.Width(mainW).Height(editorContentH)
+			edStyle = StyleEditorInactive.Width(mainW).MaxWidth(mainW).Height(editorContentH).MaxHeight(editorContentH)
 		}
 
 		tableSection := tableStyle.Render(a.tableview.View(a.panel == PanelTable))
@@ -1075,9 +1076,9 @@ func (a App) browseView() string {
 
 		var tableStyle lipgloss.Style
 		if a.panel == PanelTable {
-			tableStyle = StyleMainActive.Width(mainW).Height(tableContentH)
+			tableStyle = StyleMainActive.Width(mainW).MaxWidth(mainW).Height(tableContentH).MaxHeight(tableContentH)
 		} else {
-			tableStyle = StyleMainInactive.Width(mainW).Height(tableContentH)
+			tableStyle = StyleMainInactive.Width(mainW).MaxWidth(mainW).Height(tableContentH).MaxHeight(tableContentH)
 		}
 		mainView = tableStyle.Render(a.tableview.View(a.panel == PanelTable))
 	}

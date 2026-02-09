@@ -12,6 +12,10 @@ import (
 	"github.com/zaffron/ezpg/internal/tui/shared"
 )
 
+// cellExtraWidth is the per-cell horizontal overhead beyond content width:
+// Padding(0, 1) = 2 chars + BorderRight = 1 char = 3 total.
+const cellExtraWidth = 3
+
 type TableView struct {
 	table     table.Model
 	connName  string
@@ -25,6 +29,11 @@ type TableView struct {
 	pageSize  int
 	totalRows int
 	hasData   bool
+
+	// Horizontal scroll
+	colOffset   int // first visible column index
+	visibleCols int // number of currently visible columns
+
 	// For cell editing
 	editingRow int
 	editingCol int
@@ -42,16 +51,25 @@ func New() TableView {
 	)
 
 	s := table.DefaultStyles()
+
+	s.Cell = s.Cell.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(shared.ColorSurface1).
+		BorderRight(true)
+
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(shared.ColorSurface1).
 		BorderBottom(true).
-		Bold(true).
+		BorderRight(true).
 		Foreground(shared.ColorPrimary)
-	s.Selected = s.Selected.
+
+	// Selected wraps the entire already-rendered row (not per-cell),
+	// so it must only set colors — no padding or border.
+	s.Selected = lipgloss.NewStyle().
 		Foreground(shared.ColorFg).
-		Background(shared.ColorBgAlt).
-		Bold(false)
+		Background(shared.ColorBgAlt)
+
 	t.SetStyles(s)
 
 	return TableView{
@@ -65,7 +83,7 @@ func (tv *TableView) SetSize(w, h int) {
 	tv.height = h
 	tv.table.SetWidth(w)
 	tv.table.SetHeight(h - 3) // leave room for info line
-	tv.recalcColumns()
+	tv.rebuildTable()
 }
 
 func (tv *TableView) SetData(connName, schema, tableName string, result *db.QueryResult) {
@@ -78,14 +96,9 @@ func (tv *TableView) SetData(connName, schema, tableName string, result *db.Quer
 	tv.hasData = true
 	tv.editing = false
 	tv.inserting = false
+	tv.colOffset = 0
 
-	tv.recalcColumns()
-
-	rows := make([]table.Row, len(result.Rows))
-	for i, r := range result.Rows {
-		rows[i] = r
-	}
-	tv.table.SetRows(rows)
+	tv.rebuildTable()
 	tv.table.GotoTop()
 }
 
@@ -98,74 +111,126 @@ func (tv *TableView) SetQueryResult(result *db.QueryResult) {
 	tv.tableName = "query result"
 	tv.editing = false
 	tv.inserting = false
+	tv.colOffset = 0
 
-	tv.recalcColumns()
-
-	rows := make([]table.Row, len(result.Rows))
-	for i, r := range result.Rows {
-		rows[i] = r
-	}
-	tv.table.SetRows(rows)
+	tv.rebuildTable()
 	tv.table.GotoTop()
 }
 
-func (tv *TableView) recalcColumns() {
+// idealColWidth computes the ideal width for a column based on header and data.
+func (tv *TableView) idealColWidth(colIdx int) int {
+	w := len(tv.columns[colIdx])
+
+	sample := min(50, len(tv.rows))
+	for _, row := range tv.rows[:sample] {
+		if colIdx < len(row) && len(row[colIdx]) > w {
+			w = len(row[colIdx])
+		}
+	}
+
+	w = max(w, 4)
+	w = min(w, 40)
+	return w
+}
+
+// rebuildTable reconstructs the bubbles/table with only the visible column window,
+// accounting for cell padding and border overhead so columns never exceed the width.
+func (tv *TableView) rebuildTable() {
 	if len(tv.columns) == 0 || tv.width == 0 {
 		return
 	}
 
-	// Calculate column widths
-	numCols := len(tv.columns)
-	available := tv.width - numCols - 1 // account for separators
-	available = max(available, numCols)
-
-	// Start with header widths
-	widths := make([]int, numCols)
-	for i, c := range tv.columns {
-		widths[i] = len(c)
+	if tv.colOffset < 0 {
+		tv.colOffset = 0
+	}
+	if tv.colOffset >= len(tv.columns) {
+		tv.colOffset = len(tv.columns) - 1
 	}
 
-	// Check data widths (sample first 50 rows)
-	sampleSize := 50
-	sampleSize = min(sampleSize, len(tv.rows))
-	for _, row := range tv.rows[:sampleSize] {
-		for i, val := range row {
-			if i < numCols && len(val) > widths[i] {
-				widths[i] = len(val)
+	numCols := len(tv.columns)
+	available := tv.width
+
+	// Determine how many columns fit starting from colOffset,
+	// accounting for cell padding + border overhead per column.
+	used := 0
+	end := tv.colOffset
+	for i := tv.colOffset; i < numCols; i++ {
+		w := tv.idealColWidth(i)
+		needed := w + cellExtraWidth
+		if used+needed > available && end > tv.colOffset {
+			break
+		}
+		used += needed
+		end = i + 1
+	}
+
+	tv.visibleCols = end - tv.colOffset
+	if tv.visibleCols < 1 {
+		tv.visibleCols = 1
+		end = tv.colOffset + 1
+	}
+
+	// Build visible column definitions
+	visCols := make([]table.Column, tv.visibleCols)
+	totalUsed := 0
+	for i := 0; i < tv.visibleCols; i++ {
+		colIdx := tv.colOffset + i
+		w := tv.idealColWidth(colIdx)
+		visCols[i] = table.Column{Title: tv.columns[colIdx], Width: w}
+		totalUsed += w + cellExtraWidth
+	}
+
+	// Distribute remaining space to visible columns
+	remaining := available - totalUsed
+	if remaining > 0 && tv.visibleCols > 0 {
+		perCol := remaining / tv.visibleCols
+		for i := range visCols {
+			visCols[i].Width += perCol
+		}
+	}
+
+	// Build visible rows before touching the table to avoid panics:
+	// SetColumns triggers a re-render that accesses row data, so the
+	// row width must already match the new column count.
+	rows := make([]table.Row, len(tv.rows))
+	for i, row := range tv.rows {
+		vRow := make(table.Row, tv.visibleCols)
+		for j := 0; j < tv.visibleCols; j++ {
+			colIdx := tv.colOffset + j
+			if colIdx < len(row) {
+				vRow[j] = row[colIdx]
 			}
 		}
+		rows[i] = vRow
 	}
 
-	// Cap and distribute
-	maxColWidth := available / numCols
-	maxColWidth = max(maxColWidth, 8)
-	maxColWidth = min(maxColWidth, 50)
+	// Clear rows first so SetColumns re-render finds no rows to iterate,
+	// then set columns, then set the correctly-sized rows.
+	tv.table.SetRows([]table.Row{})
+	tv.table.SetColumns(visCols)
+	tv.table.SetRows(rows)
+}
 
-	totalUsed := 0
-	for i := range widths {
-		if widths[i] > maxColWidth {
-			widths[i] = maxColWidth
-		}
-		if widths[i] < 4 {
-			widths[i] = 4
-		}
-		totalUsed += widths[i]
-	}
-
-	// Distribute remaining space
-	if totalUsed < available {
-		extra := available - totalUsed
-		perCol := extra / numCols
-		for i := range widths {
-			widths[i] += perCol
+func (tv *TableView) ScrollRight() {
+	if tv.colOffset < len(tv.columns)-1 {
+		cursor := tv.table.Cursor()
+		tv.colOffset++
+		tv.rebuildTable()
+		if cursor >= 0 && cursor < len(tv.rows) {
+			tv.table.SetCursor(cursor)
 		}
 	}
+}
 
-	cols := make([]table.Column, numCols)
-	for i, c := range tv.columns {
-		cols[i] = table.Column{Title: c, Width: widths[i]}
+func (tv *TableView) ScrollLeft() {
+	if tv.colOffset > 0 {
+		cursor := tv.table.Cursor()
+		tv.colOffset--
+		tv.rebuildTable()
+		if cursor >= 0 && cursor < len(tv.rows) {
+			tv.table.SetCursor(cursor)
+		}
 	}
-	tv.table.SetColumns(cols)
 }
 
 func (tv *TableView) Page() int         { return tv.page }
@@ -277,6 +342,10 @@ func (tv *TableView) Update(msg tea.KeyMsg) (TableView, tea.Cmd) {
 		tv.table.MoveDown(1)
 	case key.Matches(msg, key.NewBinding(key.WithKeys("k", "up"))):
 		tv.table.MoveUp(1)
+	case key.Matches(msg, key.NewBinding(key.WithKeys("h", "left"))):
+		tv.ScrollLeft()
+	case key.Matches(msg, key.NewBinding(key.WithKeys("l", "right"))):
+		tv.ScrollRight()
 	case key.Matches(msg, key.NewBinding(key.WithKeys("g"))):
 		tv.table.GotoTop()
 	case key.Matches(msg, key.NewBinding(key.WithKeys("G"))):
@@ -325,6 +394,13 @@ func (tv TableView) View(active bool) string {
 		}
 		info = " " + tname + " |" + info
 	}
+
+	// Column scroll indicator
+	if len(tv.columns) > tv.visibleCols {
+		info += fmt.Sprintf(" | cols %d-%d/%d (h/l)",
+			tv.colOffset+1, tv.colOffset+tv.visibleCols, len(tv.columns))
+	}
+
 	infoStyle := lipgloss.NewStyle().Foreground(shared.ColorMuted)
 	b.WriteString(infoStyle.Render(info))
 
