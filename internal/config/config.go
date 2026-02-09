@@ -79,3 +79,22 @@ func validate(cfg *Config) error {
 
 	return nil
 }
+
+// DSN means Data Source Name
+func (c *Connection) DSN() string {
+	if c.URL != "" {
+		return c.URL
+	}
+
+	port := c.Port
+	if port == 0 {
+		port = 5432
+	}
+	sslmode := c.SSLMode
+	if sslmode == "" {
+		sslmode = "disable"
+	}
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", c.User, c.Password, c.Host, port, c.Database, sslmode)
+
+}
