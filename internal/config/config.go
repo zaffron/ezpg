@@ -48,6 +48,28 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+func (cfg *Config) Save() error {
+	if cfg.Path == "" {
+		return fmt.Errorf("config: no path set")
+	}
+
+	dir := filepath.Dir(cfg.Path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("creating config dir: %w", err)
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	if err := os.WriteFile(cfg.Path, data, 0o644); err != nil {
+		return fmt.Errorf("writing config file: %w", err)
+	}
+
+	return nil
+}
+
 func validate(cfg *Config) error {
 	names := make(map[string]bool)
 	for i, c := range cfg.Connections {
