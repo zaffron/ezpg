@@ -20,6 +20,7 @@ var (
 	ColorBgAlt     = lipgloss.Color(mocha.Surface0().Hex)
 	ColorFg        = lipgloss.Color(mocha.Text().Hex)
 	ColorBorder    = lipgloss.Color(mocha.Lavender().Hex)
+	ColorSurface1  = lipgloss.Color(mocha.Surface1().Hex)
 	ColorKeyHint   = lipgloss.Color(mocha.Mantle().Hex)
 
 	StyleSidebarActive = lipgloss.NewStyle().

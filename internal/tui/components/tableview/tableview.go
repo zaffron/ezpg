@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zaffron/ezpg/internal/db"
+	"github.com/zaffron/ezpg/internal/tui/shared"
 )
 
 type TableView struct {
@@ -43,13 +44,13 @@ func New() TableView {
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#45475A")).
+		BorderForeground(shared.ColorSurface1).
 		BorderBottom(true).
 		Bold(true).
-		Foreground(lipgloss.Color("#7C3AED"))
+		Foreground(shared.ColorPrimary)
 	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("#CDD6F4")).
-		Background(lipgloss.Color("#313244")).
+		Foreground(shared.ColorFg).
+		Background(shared.ColorBgAlt).
 		Bold(false)
 	t.SetStyles(s)
 
@@ -293,7 +294,7 @@ func (tv *TableView) Update(msg tea.KeyMsg) (TableView, tea.Cmd) {
 func (tv TableView) View(active bool) string {
 	if !tv.hasData {
 		placeholder := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#6B7280")).
+			Foreground(shared.ColorMuted).
 			Width(tv.width).
 			Height(tv.height).
 			Align(lipgloss.Center, lipgloss.Center).
@@ -309,7 +310,7 @@ func (tv TableView) View(active bool) string {
 
 	// Insert row indicator
 	if tv.inserting {
-		insertLine := lipgloss.NewStyle().Foreground(lipgloss.Color("#10B981")).
+		insertLine := lipgloss.NewStyle().Foreground(shared.ColorSuccess).
 			Render(fmt.Sprintf("  INSERT: column %d/%d [%s]",
 				tv.insertCol+1, len(tv.columns), tv.columns[tv.insertCol]))
 		b.WriteString(insertLine + "\n")
@@ -324,7 +325,7 @@ func (tv TableView) View(active bool) string {
 		}
 		info = " " + tname + " |" + info
 	}
-	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	infoStyle := lipgloss.NewStyle().Foreground(shared.ColorMuted)
 	b.WriteString(infoStyle.Render(info))
 
 	return b.String()

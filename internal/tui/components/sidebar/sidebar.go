@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zaffron/ezpg/internal/config"
 	"github.com/zaffron/ezpg/internal/db"
+	"github.com/zaffron/ezpg/internal/tui/shared"
 )
 
 type item struct {
@@ -43,7 +44,7 @@ func New(connections []config.Connection) Sidebar {
 
 	fi := textinput.New()
 	fi.Prompt = "/ "
-	fi.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B"))
+	fi.PromptStyle = lipgloss.NewStyle().Foreground(shared.ColorWarning)
 	fi.CharLimit = 128
 	fi.Width = 20
 
@@ -226,7 +227,7 @@ func (s *Sidebar) moveUp() {
 func (s Sidebar) View(active bool) string {
 	var b strings.Builder
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7C3AED")).Render("Connections")
+	title := lipgloss.NewStyle().Bold(true).Foreground(shared.ColorPrimary).Render("Connections")
 	b.WriteString(title + "\n")
 
 	// Show filter input when filtering
@@ -311,10 +312,10 @@ func (s Sidebar) renderItem(it item, selected bool) string {
 	}
 
 	if selected {
-		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7C3AED")).Render(text)
+		return lipgloss.NewStyle().Bold(true).Foreground(shared.ColorPrimary).Render(text)
 	}
 	if it.isConn && s.connected[it.connName] {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#10B981")).Render(text)
+		return lipgloss.NewStyle().Foreground(shared.ColorSuccess).Render(text)
 	}
 	return text
 }

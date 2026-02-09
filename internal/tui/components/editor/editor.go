@@ -4,6 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/zaffron/ezpg/internal/tui/shared"
 )
 
 func New() Editor {
@@ -14,9 +15,9 @@ func New() Editor {
 	ta.SetWidth(80)
 	ta.SetHeight(6)
 
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Background(lipgloss.Color("#313244"))
-	ta.FocusedStyle.Base = lipgloss.NewStyle().Foreground(lipgloss.Color("#CDD6F4"))
-	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280"))
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle().Background(shared.ColorBgAlt)
+	ta.FocusedStyle.Base = lipgloss.NewStyle().Foreground(shared.ColorFg)
+	ta.FocusedStyle.Placeholder = lipgloss.NewStyle().Foreground(shared.ColorMuted)
 
 	return Editor{
 		textarea: ta,
@@ -62,7 +63,7 @@ func (e *Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 func (e *Editor) View() string {
 	title := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#06B6D4")).
+		Foreground(shared.ColorSecondary).
 		Render("SQL Editor")
 
 	return title + "\n" + e.textarea.View()
