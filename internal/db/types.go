@@ -2,6 +2,7 @@ package db
 
 import (
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zaffron/ezpg/internal/config"
@@ -23,6 +24,14 @@ type Manager struct {
 * Query Related Types
 * =============================================================================
  */
+type QueryResult struct {
+	Columns  []string
+	Rows     [][]string
+	RowCount int
+	ExecTime time.Duration
+	Message  string // for non-SELECT (e.g. INSERT 0 1)
+}
+
 type TableInfo struct {
 	Schema string
 	Name   string
