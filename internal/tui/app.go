@@ -973,21 +973,31 @@ func (a *App) layoutResize() {
 		a.statusbar.SetSize(a.width)
 
 	case ScreenBrowse:
-		contentHeight := a.height - statusHeight
+		// Each panel has border + padding that adds to rendered size.
+		// Compute frame overhead so content fits within the terminal.
+		frameH := StyleSidebarActive.GetHorizontalFrameSize()
+		frameV := StyleSidebarActive.GetVerticalFrameSize()
 
 		sideW := sidebarWidth
 		sideW = min(sideW, a.width/3)
-		a.sidebar.SetSize(sideW, contentHeight)
 
-		mainW := a.width - sideW - 2
+		// Two panels side by side, each with horizontal frame overhead
+		mainW := max(a.width-sideW-2*frameH, 0)
+
+		// Sidebar spans full content height (one frame)
+		sideContentH := max(a.height-statusHeight-frameV, 0)
+		a.sidebar.SetSize(sideW, sideContentH)
 
 		if a.showEditor {
-			editorH := contentHeight / 3
-			tableH := contentHeight - editorH
+			// Table + editor stacked, each with vertical frame overhead
+			availH := max(a.height-statusHeight-2*frameV, 0)
+			editorH := availH / 3
+			tableH := availH - editorH
 			a.tableview.SetSize(mainW, tableH)
 			a.editor.SetSize(mainW, editorH)
 		} else {
-			a.tableview.SetSize(mainW, contentHeight)
+			tableH := max(a.height-statusHeight-frameV, 0)
+			a.tableview.SetSize(mainW, tableH)
 		}
 
 		a.statusbar.SetSize(a.width)
@@ -1016,49 +1026,58 @@ func (a App) homeView() string {
 }
 
 func (a App) browseView() string {
+	frameH := StyleSidebarActive.GetHorizontalFrameSize()
+	frameV := StyleSidebarActive.GetVerticalFrameSize()
+
 	sideW := sidebarWidth
 	sideW = min(sideW, a.width/3)
 
-	contentHeight := a.height - 2 // status bar (2 lines)
+	statusHeight := 2
+	sideContentH := max(a.height-statusHeight-frameV, 0)
 
 	var sideStyle lipgloss.Style
 	if a.panel == PanelSidebar {
-		sideStyle = StyleSidebarActive.Width(sideW).Height(contentHeight)
+		sideStyle = StyleSidebarActive.Width(sideW).Height(sideContentH)
 	} else {
-		sideStyle = StyleSidebarInactive.Width(sideW).Height(contentHeight)
+		sideStyle = StyleSidebarInactive.Width(sideW).Height(sideContentH)
 	}
 	sideView := sideStyle.Render(a.sidebar.View(a.panel == PanelSidebar))
 
-	mainW := a.width - lipgloss.Width(sideView) - 1
+	// Two panels side by side, each with horizontal frame overhead
+	mainW := max(a.width-sideW-2*frameH, 0)
 
 	var mainView string
 	if a.showEditor {
-		editorH := contentHeight / 3
-		tableH := contentHeight - editorH
+		// Table + editor stacked vertically, each with vertical frame
+		availH := max(a.height-statusHeight-2*frameV, 0)
+		editorContentH := availH / 3
+		tableContentH := availH - editorContentH
 
 		var tableStyle lipgloss.Style
 		if a.panel == PanelTable {
-			tableStyle = StyleMainActive.Width(mainW).Height(tableH)
+			tableStyle = StyleMainActive.Width(mainW).Height(tableContentH)
 		} else {
-			tableStyle = StyleMainInactive.Width(mainW).Height(tableH)
+			tableStyle = StyleMainInactive.Width(mainW).Height(tableContentH)
 		}
 
 		var edStyle lipgloss.Style
 		if a.panel == PanelEditor {
-			edStyle = StyleEditorActive.Width(mainW).Height(editorH)
+			edStyle = StyleEditorActive.Width(mainW).Height(editorContentH)
 		} else {
-			edStyle = StyleEditorInactive.Width(mainW).Height(editorH)
+			edStyle = StyleEditorInactive.Width(mainW).Height(editorContentH)
 		}
 
 		tableSection := tableStyle.Render(a.tableview.View(a.panel == PanelTable))
 		editorSection := edStyle.Render(a.editor.View())
 		mainView = lipgloss.JoinVertical(lipgloss.Left, tableSection, editorSection)
 	} else {
+		tableContentH := max(a.height-statusHeight-frameV, 0)
+
 		var tableStyle lipgloss.Style
 		if a.panel == PanelTable {
-			tableStyle = StyleMainActive.Width(mainW).Height(contentHeight)
+			tableStyle = StyleMainActive.Width(mainW).Height(tableContentH)
 		} else {
-			tableStyle = StyleMainInactive.Width(mainW).Height(contentHeight)
+			tableStyle = StyleMainInactive.Width(mainW).Height(tableContentH)
 		}
 		mainView = tableStyle.Render(a.tableview.View(a.panel == PanelTable))
 	}
