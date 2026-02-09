@@ -66,8 +66,8 @@ func (m *Manager) ListColumns(ctx context.Context, connName string, schema, tabl
 				(
 					SELECT true FROM information_schema.key_column_usage kcu
 						JOIN information_schema.table_constraints tc
-							ON kcu.constrain_name = tc.constrain_name
-							AND kcu.table_shcema = tc.table_schema
+							ON kcu.constraint_name = tc.constraint_name
+							AND kcu.table_schema = tc.table_schema
 						WHERE tc.constraint_type = 'PRIMARY KEY'
 							AND kcu.table_schema = c.table_schema
 							AND kcu.table_name = c.table_name
